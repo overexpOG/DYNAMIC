@@ -19,295 +19,641 @@
 
 #include "dynamic/internal/includes.hpp"
 
-namespace dyn{
+namespace dyn
+{
 
-template<class dynamic_bitvector_t>
+    template <class dynamic_bitvector_t>
 
-class wm_string{
+    class wm_string
+    {
 
-public:
-    std::vector<dynamic_bitvector_t> bit_arrays;
-    std::vector<ulint> begin_one;               // 各bitの1の開始位置
+    public:
+        std::vector<dynamic_bitvector_t> bit_arrays; // Array of bitvectors
+        std::vector<ulint> begin_one;                // Initial position of 1 for each bit
+                                                     // Amount of zeroes in each level
 
-    ulint n = 0;                                    // 与えられた配列のサイズ
-    ulint sigma = 0;                      // 最大の文字
-    ulint bit_width = 0;                             // 文字を表すのに必要なbit数
+        ulint n = 0;         // size of the matrix
+        ulint sigma = 0;     // max char
+        ulint bit_width = 0; // number of bits necessary to represent a character
 
-public:
-    wm_string (void) { } // default constructor, for loading from file
+    public:
+        wm_string(void) {} // default constructor, for loading from file
 
-    // max_element: 入ってくる中で一番大きい数値
-    wm_string (ulint sigma) : n(0), sigma(sigma + 1) {
-        this->bit_width = this->get_num_of_bit(sigma);
-        if (bit_width == 0) {
-            bit_width = 1;
-        }
-        this->begin_one.resize(bit_width);
-
-        for (ulint i = 0; i < bit_width; ++i) {
-            dynamic_bitvector_t sv;
-            bit_arrays.push_back(sv);
-        }
-    }
-
-    // hack to accept an alphabet with frequencies, to match wt_string interface for testing
-    // doesn't work
-    /*
-    wm_string(vector<pair<ulint, double>>& P) {
-        n = 0;
-        sigma = 0;
-        for (auto& e : P) {
-            if (e.first > sigma) {
-                sigma = e.first;
+        // max_element: the biggest number that enters
+        wm_string(ulint sigma) : n(0), sigma(sigma + 1)
+        {
+            this->bit_width = this->get_num_of_bit(sigma);
+            if (bit_width == 0)
+            {
+                bit_width = 1;
             }
-        }
-        ++sigma;
-        this->bit_width = this->get_num_of_bit(sigma-1);
-        if (bit_width == 0) {
-            bit_width = 1;
-        }
-        this->begin_one.resize(bit_width);
+            this->begin_one.resize(bit_width);
 
-        for (ulint i = 0; i < bit_width; ++i) {
-            dynamic_bitvector_t sv;
-            bit_arrays.push_back(sv);
-        }
-    }
-    */
-
-    wm_string (ulint num_of_alphabet, const std::vector<ulint> &array) : n(0), sigma(num_of_alphabet + 1) {
-        this->bit_width = this->get_num_of_bit(num_of_alphabet);
-        if (bit_width == 0) {
-            bit_width = 1;
-        }
-        this->begin_one.resize(bit_width);
-
-        if (array.empty()) {
-            for (ulint i = 0; i < bit_width; ++i) {
+            for (ulint i = 0; i < bit_width; ++i)
+            {
                 dynamic_bitvector_t sv;
                 bit_arrays.push_back(sv);
             }
-            return;
         }
 
-        n = array.size();
+        wm_string(ulint num_of_alphabet, const std::vector<ulint> &array) : n(0), sigma(num_of_alphabet + 1)
+        {
+            this->bit_width = this->get_num_of_bit(num_of_alphabet);
+            if (bit_width == 0) {
+                bit_width = 1;
+            }
+            this->begin_one.resize(bit_width);
 
-        std::vector<ulint> v(array), b(array.size(), 0);
+            if (array.empty())
+            {
+                for (ulint i = 0; i < bit_width; ++i)
+                {
+                    dynamic_bitvector_t sv;
+                    bit_arrays.push_back(sv);
+                }
+                return;
+            }
 
-        for (ulint i = 0; i < bit_width; ++i) {
+            n = array.size();
 
-            std::vector<ulint> temp;
-            // 0をtempにいれてく
-            for (ulint j = 0; j < v.size(); ++j) {
-                ulint c = v.at(j);
-                ulint bit = (c >> (bit_width - i - 1)) & 1;  //　上からi番目のbit
-                if (bit == 0) {
-                    temp.push_back(c);
-                    b[j] = 0;
+            std::vector<ulint> v(array), b(array.size(), 0);
+
+            for (ulint i = 0; i < bit_width; ++i) {
+
+                std::vector<ulint> temp;
+                // put 0 in temp
+                for (ulint j = 0; j < v.size(); ++j) {
+                    ulint c = v.at(j);
+                    ulint bit = (c >> (bit_width - i - 1)) & 1; // i-th bit from the top
+                    if (bit == 0) {
+                        temp.push_back(c);
+                        b[j] = 0;
+                    }
+                }
+
+                this->begin_one.at(i) = temp.size();
+
+                // put 1 in temp
+                for (ulint j = 0; j < v.size(); ++j) {
+                    ulint c = v.at(j);
+                    ulint bit = (c >> (bit_width - i - 1)) & 1; // 　i-th bit from the top
+                    if (bit == 1)
+                    {
+                        temp.push_back(c);
+                        b[j] = 1;
+                    }
+                }
+
+                dynamic_bitvector_t dbv;
+                for (auto &i : b) {
+                    dbv.push_back(i);
+                }
+                bit_arrays.emplace_back(dbv);
+                v = temp;
+            }
+        }
+
+        ulint serialize(ostream &out) const
+        {
+            ulint w_bytes = 0;
+            out.write((char *)&n, sizeof(n));
+            w_bytes += sizeof(n);
+            out.write((char *)&sigma, sizeof(sigma));
+            w_bytes += sizeof(sigma);
+            out.write((char *)&bit_width, sizeof(bit_width));
+            w_bytes += sizeof(bit_width);
+            out.write((char *)begin_one.data(), sizeof(ulint) * bit_width);
+            w_bytes += sizeof(ulint) * bit_width;
+            for (auto &bv : bit_arrays)
+            {
+                w_bytes += bv.serialize(out);
+            }
+            return w_bytes;
+        }
+
+        void load(istream &in)
+        {
+            in.read((char *)&n, sizeof(n));
+            in.read((char *)&sigma, sizeof(sigma));
+            in.read((char *)&bit_width, sizeof(bit_width));
+            begin_one.resize(bit_width);
+            in.read((char *)begin_one.data(), sizeof(ulint) * bit_width);
+            bit_arrays.resize(bit_width);
+            for (ulint i = 0; i < bit_width; ++i)
+            {
+                bit_arrays[i].load(in);
+            }
+        }
+
+        // v[pos]
+        ulint at(ulint pos) const
+        {
+            assert(pos < this->n);
+
+            ulint c = 0;
+            for (ulint i = 0; i < bit_arrays.size(); ++i)
+            {
+                const dynamic_bitvector_t &level =  bit_arrays.at(i);
+                ulint bit = level.at(pos); // i-th bit of the original value
+                c = (c <<= 1) | bit;
+                pos = level.rank(pos, bit);
+                if (bit)
+                {
+                    pos += this->begin_one.at(i);
+                }
+            }
+            return c;
+        }
+
+        // high-level access
+        ulint operator[](ulint i) const { return this->at(i); }
+
+        // number of c's in v[0..pos)
+        ulint rank(ulint pos, ulint c) const
+        {
+            assert(pos <= n);
+            if (c >= sigma)
+            {
+                return 0;
+            }
+
+            ulint left = 0, right = pos;
+            for (ulint i = 0; i < bit_width; ++i)
+            {
+                const ulint bit = (c >> (bit_width - i - 1)) & 1; // i-th bit from the top
+                const dynamic_bitvector_t &level =  bit_arrays.at(i);
+                left = level.rank(left, bit);          // number of numbers that are equal to the i-th bit of c
+                right = level.rank(right, bit);        // number of numbers that are equal to the i-th bit of c
+                if (bit)
+                {
+                    left += this->begin_one.at(i);
+                    right += this->begin_one.at(i);
                 }
             }
 
-            this->begin_one.at(i) = temp.size();
+            return right - left;
+        }
 
-            // 1をtempにいれてく
-            for (ulint j = 0; j < v.size(); ++j) {
-                ulint c = v.at(j);
-                ulint bit = (c >> (bit_width - i - 1)) & 1;  //　上からi番目のbit
-                if (bit == 1) {
-                    temp.push_back(c);
-                    b[j] = 1;
+        // Returns the i-th position of c+1
+        // The rank is 1-origin
+        ulint select(ulint rank, ulint c) const
+        {
+            assert(rank > 0);
+            assert(c < sigma);
+            --rank;
+
+            ulint left = 0;
+            for (ulint i = 0; i < bit_width; ++i)
+            {
+                const ulint bit = (c >> (bit_width - i - 1)) & 1; // i-th bit from the top
+                left = bit_arrays.at(i).rank(left, bit);          // number of numbers that are equal to the i-th bit of c
+                if (bit)
+                {
+                    left += this->begin_one.at(i);
                 }
             }
 
-            dynamic_bitvector_t dbv;
-            for (auto& i : b) { dbv.push_back(i); }
-            bit_arrays.emplace_back(dbv);
-            v = temp;
+            ulint index = left + rank;
+            for (ulint i = 0; i < bit_arrays.size(); ++i)
+            {
+                ulint bit = ((c >> i) & 1); // i-th bit from the bottom
+                if (bit == 1)
+                {
+                    index -= this->begin_one.at(bit_width - i - 1);
+                }
+                index = this->bit_arrays.at(bit_width - i - 1).select(index, bit);
+            }
+            return index + 1;
         }
-    }
 
-    ulint serialize(ostream& out) const {
-        ulint w_bytes = 0;
-        out.write((char*)&n, sizeof(n));
-        w_bytes += sizeof(n);
-        out.write((char*)&sigma, sizeof(sigma));
-        w_bytes += sizeof(sigma);
-        out.write((char*)&bit_width, sizeof(bit_width));
-        w_bytes += sizeof(bit_width);
-        out.write((char*)begin_one.data(), sizeof(ulint) * bit_width);
-        w_bytes += sizeof(ulint) * bit_width;
-        for (auto& bv : bit_arrays) {
-            w_bytes += bv.serialize(out);
+        // Insert c in pos
+        void insert(ulint pos, ulint c)
+        {
+            assert(pos <= this->n);
+
+            for (ulint i = 0; i < bit_arrays.size(); ++i)
+            {
+                const ulint bit = (c >> (bit_width - i - 1)) & 1; // i-th bit from the top
+                bit_arrays.at(i).insert(pos, bit);
+                pos = bit_arrays.at(i).rank(pos, bit);
+                if (bit)
+                {
+                    pos += this->begin_one.at(i);
+                }
+                else
+                {
+                    this->begin_one.at(i)++;
+                }
+            }
+
+            this->n++;
         }
-        return w_bytes;
-    }
 
-    void load(istream& in) {
-        in.read((char*)&n, sizeof(n));
-        in.read((char*)&sigma, sizeof(sigma));
-        in.read((char*)&bit_width, sizeof(bit_width));
-        begin_one.resize(bit_width);
-        in.read((char*)begin_one.data(), sizeof(ulint) * bit_width);
-        bit_arrays.resize(bit_width);
-        for (ulint i = 0; i < bit_width; ++i) {
-            bit_arrays[i].load(in);
+        void push_front(ulint c)
+        {
+            this->insert(0, c);
         }
-    }
 
-    // v[pos]
-    ulint at(ulint pos) const {
-        assert(pos < this->n);
+        // add c ath the end
+        void push_back(ulint c)
+        {
+            this->insert(this->n, c);
+        }
 
-        ulint c = 0;
-        for (ulint i = 0; i < bit_arrays.size(); ++i) {
-            ulint bit = bit_arrays.at(i).at(pos);   // もとの数値がのi番目のbit
-            c = (c <<= 1) | bit;
-            pos = bit_arrays.at(i).rank(pos, bit);
-            if (bit) {
-                pos += this->begin_one.at(i);
+        // remove pos
+        void remove(ulint pos)
+        {
+            assert(pos < this->n);
+            if (pos >= this->n)
+            {
+                throw "Segmentation fault";
+            }
+
+            for (ulint i = 0; i < bit_arrays.size(); ++i)
+            {
+                ulint bit = bit_arrays.at(i).at(pos); // the i-th bit of the original number
+
+                auto next_pos = bit_arrays.at(i).rank(pos, bit);
+                bit_arrays.at(i).remove(pos);
+
+                if (bit)
+                {
+                    next_pos += this->begin_one.at(i);
+                }
+                else
+                {
+                    this->begin_one.at(i)--;
+                }
+                pos = next_pos;
+            }
+            this->n--;
+        }
+
+        uint64_t remove_and_return(uint64_t pos) {
+            assert(pos < this->n);
+            if (pos >= this->n) {
+                throw "Segmentation fault";
+            }
+
+            uint64_t res = 0;
+
+            for (ulint i = 0; i < bit_arrays.size(); ++i) {
+                ulint bit = bit_arrays.at(i).at(pos); // the i-th bit of the original number
+                res <<= 1;
+                res |= bit;
+
+                auto next_pos = bit_arrays.at(i).rank(pos, bit);
+                bit_arrays.at(i).remove(pos);
+
+                if (bit)
+                {
+                    next_pos += this->begin_one.at(i);
+                }
+                else
+                {
+                    this->begin_one.at(i)--;
+                }
+                pos = next_pos;
+            }
+            this->n--;
+            return res;
+        }
+
+        // update c in pos
+        void update(ulint pos, ulint c)
+        {
+            assert(pos < this->n);
+            this->remove(pos);
+            this->insert(pos, c);
+        }
+
+        ulint size(void) const
+        {
+            return this->n;
+        }
+
+        ulint bit_size(void) const
+        {
+            ulint n_bits = 0;
+            for (auto &ba : bit_arrays)
+            {
+                n_bits += ba.bit_size();
+            }
+            n_bits += sizeof(ulint) * begin_one.size();
+            return n_bits;
+        }
+
+        // Other operations are the same as the normal wavelet matrix
+
+        /*** Select next
+         * Implemented by Yuval Linker
+         * @arg i
+         * @arg c
+         * @arg n_elems
+         * @returns pair<>
+         * */
+        std::pair<ulint, ulint> select_next(ulint pos, ulint c, ulint n_elems) const
+        {
+            assert(pos <= size());
+            uint64_t mask = 1ULL << (bit_arrays.size() - 1);
+            // Interval [b...b+r]
+            ulint b = 0;
+            ulint r = pos; // size of interval
+            ulint rank_b = 0;
+
+            // Vectors
+            std::vector<ulint> path_beginnings(bit_arrays.size() + 1);
+            std::vector<ulint> path_ranks(bit_arrays.size() + 1);
+
+            for (ulint k = 0; k < bit_arrays.size(); k++)
+            {
+                const dynamic_bitvector_t &level = bit_arrays.at(k);
+                rank_b = level.rank(b);            // ones in [0...b)
+                ulint ones = level.rank(b + r) - rank_b; // ones in [b...r)
+                if (c & mask)
+                {
+                    r = ones;
+                    b = begin_one.at(k) + rank_b;
+                }
+                else
+                {
+                    r = r - ones;
+                    b -= rank_b;
+                }
+                mask >>= 1;
+                path_beginnings[k + 1] = b;
+                path_ranks[k] = rank_b;
+            }
+
+            mask = 1ULL;
+            pos = r + 1;
+            if (pos > n_elems)
+                return std::pair<ulint, ulint>(0, 0);
+            uint64_t levels_amount = bit_arrays.size();
+
+            for (ulint k = 1; k <= levels_amount; k++)
+            {
+                b = path_beginnings[levels_amount - k];
+                rank_b = path_ranks[levels_amount - k];
+                const dynamic_bitvector_t &level = bit_arrays.at(levels_amount - k);
+                if (c & mask) { // right child => search i'th one
+                    pos = level.select1(rank_b + pos - 1) - b + 1;
+                } else { // left child => search i'th zero
+                    pos = level.select0(b - rank_b + pos - 1) - b + 1;
+                }
+                mask <<= 1;
+            }
+            return std::pair<ulint, ulint>(pos - 1, r);
+        }
+
+        ulint range_minimum_query(ulint i, ulint j) const
+        {
+            return _range_minimum_query(i, j, 0, 0, 0);
+        }
+
+        ulint _range_minimum_query(ulint i, ulint j, ulint depth, ulint b, ulint res) const
+        {
+            if (depth == bit_arrays.size())
+            {
+                return res;
+            }
+            else
+            {
+                const dynamic_bitvector_t &level = bit_arrays.at(depth);
+                ulint rank_0_b = level.rank(b);
+                ulint rank_b_i = level.rank(b + i) - rank_0_b;
+                ulint rank_b_j = level.rank(b + j + 1) - rank_0_b;
+
+                ulint i_l = i - rank_b_i;
+                ulint j_l = j - rank_b_j;
+                ulint i_r = i - i_l;
+                ulint j_r = j - 1 - j_l;
+                ulint n_l = j_l - i_l + 1;
+
+                res <<= 1;
+                if (n_l == 0)
+                {
+                    b = begin_one.at(depth) + rank_0_b;
+                    res |= 1;
+                    return _range_minimum_query(i_r, j_r, depth + 1, b, res);
+                }
+                else
+                {
+                    b -= rank_0_b;
+                    return _range_minimum_query(i_l, j_l, depth + 1, b, res);
+                }
             }
         }
-        return c;
-    }
 
-    // high-level access
-    ulint operator[](ulint i) const { return this->at(i); }
+        // TODO: Document
+        /*** Recursively finds the value in range that is >= x
+         * \param
+         *
+         * */
+        ulint range_next_value(ulint x, ulint i, ulint j) const
+        {
+            // c is greater than any symbol in the wm
+            if (((1ULL) << bit_arrays.size()) <= x)
+                return 0;
 
-    // v[0, pos)のcの数
-    ulint rank(ulint pos, ulint c) const {
-        assert(pos <= n);
-        if (c >= sigma) {
-            return 0;
+            return _range_next_value(x, i, j, 0, 0, 0);
         }
 
-        ulint left = 0, right = pos;
-        for (ulint i = 0; i < bit_width; ++i) {
-            const ulint bit = (c >> (bit_width - i - 1)) & 1;  // 上からi番目のbit
-            left = bit_arrays.at(i).rank(left, bit);             // cのi番目のbitと同じ数値の数
-            right = bit_arrays.at(i).rank(right, bit);           // cのi番目のbitと同じ数値の数
-            if (bit) {
-                left += this->begin_one.at(i);
-                right += this->begin_one.at(i);
+        ulint _range_next_value(ulint x, ulint i, ulint j, ulint depth, ulint b, ulint res) const
+        {
+            if (b + i > b + j) {
+                return 0;
+            } else {
+                if (depth == bit_arrays.size())
+                    return res;
+                else
+                {
+                    const dynamic_bitvector_t &level = bit_arrays.at(depth);
+                    ulint rank_0_b = level.rank(b);
+                    ulint rank_b_i = level.rank(b + i) - rank_0_b;
+                    ulint rank_b_j = level.rank(b + j + 1) - rank_0_b;
+
+                    ulint i_l = i - rank_b_i; // i in the left child
+                    ulint j_l = j - rank_b_j; // j in the left child
+                    ulint i_r = i - i_l;      // i in the right child
+                    ulint j_r = j - 1 - j_l;  // j in the right child
+
+                    ulint mask = (1ULL) << (bit_arrays.size() - 1 - depth);
+                    res <<= 1;
+                    if (x & mask)
+                    { // recurse on the right child
+                        b = begin_one.at(depth) + rank_0_b;
+                        res |= 1;
+                        return _range_next_value(x, i_r, j_r, depth + 1, b, res);
+                    }
+                    else
+                    { // recurse on the left child
+                        b -= rank_0_b;
+                        ulint y = _range_next_value(x, i_l, j_l, depth + 1, b, res);
+
+                        if (y != 0)
+                            return y;
+                        else
+                        {
+                            // It didnt find the next value in the left child so find the min in the right child
+                            b = begin_one.at(depth) + rank_0_b;
+                            res |= 1;
+                            return _range_next_value_min(i_r, j_r, depth + 1, b, res);
+                        }
+                    }
+                }
             }
         }
 
-        return right - left;
-    }
+        ulint _range_next_value_min(ulint i, ulint j, ulint depth, ulint b, ulint res) const
+        {
+            if (b + i > b + j)
+                return 0;
 
-    // i番目のcの位置 + 1を返す。rankは1-origin
-    ulint select(ulint rank, ulint c) const {
-        assert(rank > 0);
-        assert(c < sigma);
-        --rank;
+            if (depth == bit_arrays.size())
+                return res;
+            else
+            {
+                const dynamic_bitvector_t &level = bit_arrays.at(depth);
+                ulint rank_0_b = level.rank(b);
+                ulint rank_b_i = level.rank(b + i) - rank_0_b;
+                ulint rank_b_j = level.rank(b + j + 1) - rank_0_b;
 
-        ulint left = 0;
-        for (ulint i = 0; i < bit_width; ++i) {
-            const ulint bit = (c >> (bit_width - i - 1)) & 1;  // 上からi番目のbit
-            left = bit_arrays.at(i).rank(left, bit);               // cのi番目のbitと同じ数値の数
-            if (bit) {
-                left += this->begin_one.at(i);
+                ulint i_l = i - rank_b_i;
+                ulint j_l = j - rank_b_j;
+                ulint i_r = i - i_l;
+                ulint j_r = j - 1 - j_l;
+                ulint n_l = j_l - i_l + 1; // number of elements in the interval on the left child
+
+
+                res <<= 1;
+                if (n_l == 0)
+                { // recurse on the right child
+                    b = begin_one.at(depth) + rank_0_b;
+                    res |= 1;
+                    return _range_next_value_min(i_r, j_r, depth + 1, b, res);
+                }
+                else
+                { // recurse on the left child
+                    b -= rank_0_b;
+                    return _range_next_value_min(i_l, j_l, depth + 1, b, res);
+                }
             }
         }
 
-        ulint index = left + rank;
-        for (ulint i = 0; i < bit_arrays.size(); ++i){
-            ulint bit = ((c >> i) & 1);      // 下からi番目のbit
-            if (bit == 1) {
-                index -= this->begin_one.at(bit_width - i - 1);
+        std::pair<range_t, range_t> child_ranges(ulint depth, range_t r) const
+        {
+            const dynamic_bitvector_t &level = bit_arrays.at(depth);
+            ulint left_of_range_ones = level.rank(r.first);
+            ulint in_range_ones = level.rank(r.second + 1);
+            ulint right_size = in_range_ones - left_of_range_ones;
+            ulint left_size = (r.second - r.first + 1) - right_size;
+
+            ulint left_offset = r.first - left_of_range_ones;
+            ulint right_offset = left_of_range_ones + begin_one.at(depth);
+
+            return {
+                {left_offset, left_offset + left_size - 1},
+                {right_offset, right_offset + right_size - 1}};
+        }
+
+        std::vector<ulint>
+        all_values_in_range(ulint lb, ulint rb) const
+        {
+            std::vector<ulint> res_vec;
+            if (lb <= rb)
+            {
+                _all_values_in_range(0, 0, {lb, rb}, res_vec);
             }
-            //std::cerr << "selecting index " << index << " bit " << bit << std::endl;
-            index = this->bit_arrays.at(bit_width - i - 1).select(index, bit);
+            return res_vec;
         }
-        return index+1;
-    }
 
-    // posにcを挿入する
-    void insert(ulint pos, ulint c) {
-        assert(pos <= this->n);
+        void _all_values_in_range(ulint acc_sym, ulint depth, range_t r, std::vector<ulint> &res_vec) const
+        {
+            using std::get;
+            if (get<0>(r) > get<1>(r))
+                return;
 
-        for (ulint i = 0; i < bit_arrays.size(); ++i) {
-            const ulint bit = (c >> (bit_width - i - 1)) & 1;  //　上からi番目のbit
-            bit_arrays.at(i).insert(pos, bit);
-            pos = bit_arrays.at(i).rank(pos, bit);
-            if (bit) {
-                pos += this->begin_one.at(i);
+            ulint level_sym = acc_sym << 1;
+
+            if (depth == bit_arrays.size() - 1)
+            {
+                ulint l_bound = get<0>(r);
+                ulint r_bound = get<1>(r);
+                const dynamic_bitvector_t &level = bit_arrays.at(depth);
+                ulint rank_outside_range = level.rank(l_bound);
+                ulint rank_inside_range = level.rank(r_bound + 1);
+                if ((r_bound - l_bound + 1 - (rank_inside_range - rank_outside_range)) > 0)
+                {
+                    res_vec.emplace_back(level_sym);
+                }
+                if (rank_inside_range - rank_outside_range > 0)
+                {
+                    level_sym |= 1;
+                    res_vec.emplace_back(level_sym);
+                }
+                return;
             }
-            else {
-                this->begin_one.at(i)++;
+
+            // Transform range to left and right child
+
+            std::pair<range_t, range_t> next_ranges = child_ranges(depth, r);
+
+
+
+            if (!dyn::empty(get<0>(next_ranges)))
+            { // Left child
+                _all_values_in_range(level_sym, depth + 1, get<0>(next_ranges), res_vec);
+            }
+            if (!dyn::empty(get<1>(next_ranges)))
+            { // right child
+                _all_values_in_range(level_sym | 1, depth + 1, get<1>(next_ranges), res_vec);
             }
         }
 
-        this->n++;
-    }
-
-    void push_front(ulint c) {
-        this->insert(0, c);
-    }
-
-    // 末尾にcを追加する
-    void push_back(ulint c) {
-        this->insert(this->n, c);
-    }
-
-    // posを削除する
-    void remove(ulint pos) {
-        assert(pos < this->n);
-        if (pos >= this->n) {
-            throw "Segmentation fault";
-        }
-
-        for (ulint i = 0; i < bit_arrays.size(); ++i) {
-            ulint bit = bit_arrays.at(i).at(pos);   // もとの数値のi番目のbit
-
-            auto next_pos = bit_arrays.at(i).rank(pos, bit);
-            bit_arrays.at(i).remove(pos);
-
-            if (bit) {
-                next_pos += this->begin_one.at(i);
+        std::pair<ulint, ulint> inverse_select(ulint i) const
+        {
+            assert(i < size());
+            ulint c = 0;
+            ulint b = 0; // start position of the interval
+            ulint mask = (1ULL) << (bit_arrays.size() - 1);
+            for (ulint k = 0; k < bit_arrays.size(); ++k)
+            {
+                const dynamic_bitvector_t &level = bit_arrays.at(k);
+                ulint ones_left_of_interval = level.rank(b);
+                ulint ones_in_interval = level.rank(b + i) - ones_left_of_interval;
+                c <<= 1;
+                if (level[b + i])
+                {
+                    i = ones_in_interval;
+                    b = begin_one.at(k) + ones_left_of_interval;
+                    c |= 1;
+                }
+                else
+                {
+                    i -= ones_in_interval;
+                    b -= ones_left_of_interval;
+                }
+                mask >>= 1;
             }
-            else {
-                this->begin_one.at(i)--;
+            return {i, c};
+        }
+
+    private:
+        ulint get_num_of_bit(ulint x)
+        {
+            if (x == 0)
+                return 0;
+            x--;
+            ulint bit_num = 0;
+            while (x >> bit_num)
+            {
+                ++bit_num;
             }
-            pos = next_pos;
+            return bit_num;
         }
-        this->n--;
-    }
-
-    // posにcをセットする
-    void update(ulint pos, ulint c) {
-        assert(pos < this->n);
-        this->remove(pos);
-        this->insert(pos, c);
-    }
-
-    ulint size(void) const {
-        return this->n;
-    }
-
-    ulint bit_size(void) const {
-        ulint n_bits = 0;
-        for (auto& ba : bit_arrays) {
-            n_bits += ba.bit_size();
-        }
-        n_bits += sizeof(ulint) * begin_one.size();
-        return n_bits;
-    }
-
-    // 他の操作は通常のWavelet Matrixと同じ
-
-private:
-    ulint get_num_of_bit(ulint x) {
-        if (x == 0) return 0;
-        x--;
-        ulint bit_num = 0;
-        while (x >> bit_num) {
-            ++bit_num;
-        }
-        return bit_num;
-    }
-};
+    };
 
 }
-
 
 #endif /* INCLUDE_INTERNAL_WM_STRING_HPP_ */

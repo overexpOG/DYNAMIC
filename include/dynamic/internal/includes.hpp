@@ -37,6 +37,14 @@ typedef uint32_t uint;
 typedef unsigned char symbol;
 typedef pair<uint64_t,uint64_t> range_t;
 
+namespace dyn
+{
+	inline bool empty (const range_t& r)
+	{
+		return r.first > r.second;
+	}
+}
+
 /*
  * input: an input stream of characters
  * output: character frequencies

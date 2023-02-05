@@ -195,7 +195,6 @@ namespace dyn{
 	 // optimization for bitvectors
 
 	 for(uint64_t j = 0;j<(i/64)*(width_==1);++j){
-
 	    s += __builtin_popcountll(words[j]);
 	    pos += 64;
 

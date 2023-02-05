@@ -1,5 +1,7 @@
-DYNAMIC: a succinct and compressed fully-dynamic data structures library
+This is a Fork of DYNAMIC: a succinct and compressed fully-dynamic data structures library
 ===============
+
+### This Fork has the objective of adapting DYNAMIC to support the Ring operations
 
 ### Contributors
 

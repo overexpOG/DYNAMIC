@@ -1666,6 +1666,7 @@ class spsi<leaf_type, B_LEAF, B>::node {
 
   /*
    * helper functions for child search
+   * Its secuential it would be faster to make it binary search
    */
   inline uint64_t find_child(uint64_t i) const {
     uint64_t j = 0;
