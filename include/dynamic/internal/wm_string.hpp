@@ -644,7 +644,7 @@ namespace dyn
         {
             if (x == 0)
                 return 0;
-            x--;
+
             ulint bit_num = 0;
             while (x >> bit_num)
             {
