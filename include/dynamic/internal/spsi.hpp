@@ -175,7 +175,24 @@ class spsi {
 
     assert(i < size());
 
-    return root->psum(i);
+    node *curr = root;
+    uint32_t j = 0;
+    uint64_t res = 0;
+
+    while (!curr->has_leaves())
+    {
+      j = curr->find_child(i);
+      res += curr->previous_psum(j);
+      i -= curr->previous_size(j);
+      curr = curr->child_at(j);
+    }
+
+    j = curr->find_child(i);
+    res += curr->previous_psum(j);
+    i -= curr->previous_size(j);
+    res += curr->leaf_at(j)->psum(i);
+
+    return res;
   }
 
   /*
@@ -184,7 +201,24 @@ class spsi {
   uint64_t search(uint64_t x) const {
     assert(x <= psum());
 
-    return root->search(x);
+    node *curr = root;
+    uint32_t j = 0;
+    uint64_t res = 0;
+
+    while (!curr->has_leaves())
+    {
+      j = curr->find_1(x);
+      res += curr->previous_size(j);
+      x -= curr->previous_psum(j);
+      curr = curr->child_at(j);
+    }
+
+    j = curr->find_1(x);
+    res += curr->previous_size(j);
+    x -= curr->previous_psum(j);
+    res += curr->leaf_at(j)->search(x);
+
+    return res;
   }
 
   /*
@@ -198,7 +232,27 @@ class spsi {
   uint64_t search_0(uint64_t x) const {
     assert(x <= size() - psum());
 
-    return root->search_0(x);
+    node *curr = root;
+    uint32_t j = 0;
+    uint64_t res = 0;
+    uint64_t prev_size = 0;
+
+    while (!curr->has_leaves())
+    {
+      j = curr->find_0(x);
+      prev_size = curr->previous_size(j); 
+      res += prev_size;
+      x -= prev_size - curr->previous_psum(j);
+      curr = curr->child_at(j);
+    }
+
+    j = curr->find_0(x);
+    prev_size = curr->previous_size(j); 
+    res += prev_size;
+    x -= prev_size - curr->previous_psum(j);
+    res += curr->leaf_at(j)->search_0(x);
+
+    return res;
   }
 
   /*
@@ -538,6 +592,26 @@ class spsi<leaf_type, B_LEAF, B>::node {
 
     // else: recurse on children
     return children[j]->at(i - previous_size);
+  }
+
+  node *child_at(uint32_t j)
+  {
+    return children[j];
+  }
+
+  leaf_type *leaf_at(uint32_t j)
+  {
+    return leaves[j];
+  }
+
+  inline uint64_t previous_size(uint32_t j) const
+  {
+    return j == 0 ? 0 : subtree_sizes[j - 1];
+  }
+
+  inline uint64_t previous_psum(uint32_t j) const
+  {
+    return j == 0 ? 0 : subtree_psums[j - 1];
   }
 
   /*
@@ -1376,6 +1450,37 @@ class spsi<leaf_type, B_LEAF, B>::node {
     in.read((char*)&nr_children, sizeof(nr_children));
   }
 
+  /*
+   * helper functions for child search
+   * Its secuential it would be faster to make it binary search
+   */
+  inline uint64_t find_child(uint64_t i) const {
+    uint64_t j = 0;
+    while (subtree_sizes[j] <= i) {
+      j++;
+      assert(j < subtree_sizes.size());
+    }
+    return j;
+  }
+
+  inline uint64_t find_1(uint64_t x) const {
+    uint64_t j = 0;
+    while (!subtree_psums[j] || subtree_psums[j] < x) {
+      j++;
+      assert(j < subtree_psums.size());
+    }
+    return j;
+  }
+
+  inline uint64_t find_0(uint64_t x) const {
+    uint64_t j = 0;
+    while (subtree_sizes[j] - subtree_psums[j] < x) {
+      j++;
+      assert(j < subtree_psums.size());
+    }
+    return j;
+  }
+
  private:
   /*
    * new element between elements i and i+1
@@ -1664,36 +1769,6 @@ class spsi<leaf_type, B_LEAF, B>::node {
     return 2 * B_LEAF - l.size();
   }
 
-  /*
-   * helper functions for child search
-   * Its secuential it would be faster to make it binary search
-   */
-  inline uint64_t find_child(uint64_t i) const {
-    uint64_t j = 0;
-    while (subtree_sizes[j] <= i) {
-      j++;
-      assert(j < subtree_sizes.size());
-    }
-    return j;
-  }
-
-  inline uint64_t find_1(uint64_t x) const {
-    uint64_t j = 0;
-    while (!subtree_psums[j] || subtree_psums[j] < x) {
-      j++;
-      assert(j < subtree_psums.size());
-    }
-    return j;
-  }
-
-  inline uint64_t find_0(uint64_t x) const {
-    uint64_t j = 0;
-    while (subtree_sizes[j] - subtree_psums[j] < x) {
-      j++;
-      assert(j < subtree_psums.size());
-    }
-    return j;
-  }
 
   inline size_t find_r(uint64_t x) const {
     size_t j = 0;
