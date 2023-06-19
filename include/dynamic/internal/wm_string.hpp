@@ -389,7 +389,7 @@ namespace dyn
             std::vector<ulint> path_beginnings(bit_arrays.size() + 1);
             std::vector<ulint> path_ranks(bit_arrays.size() + 1);
 
-            for (ulint k = 0; k < bit_arrays.size(); k++)
+            for (ulint k = 0; k < bit_arrays.size() and pos; k++)
             {
                 const dynamic_bitvector_t &level = bit_arrays.at(k);
                 rank_b = level.rank(b);                  // ones in [0...b)
