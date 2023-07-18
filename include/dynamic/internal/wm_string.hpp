@@ -371,6 +371,8 @@ namespace dyn
 
         /*** Select next
          * Implemented by Yuval Linker
+         * Find the position of the next c outside of the range [0,pos] 
+         * 
          * @arg i
          * @arg c
          * @arg n_elems

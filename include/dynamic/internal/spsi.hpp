@@ -412,7 +412,7 @@ class spsi {
 
 template <class leaf_type,  // underlying representation of the integers
           uint32_t B_LEAF,  // number of integers m allowed for a
-          // leaf is B_LEAF <= m <= 2*B_LEAF (except at the beginning)
+          // leaf is B_LEAF <= m <= 3*B_LEAF (except at the beginning)
           uint32_t B  // Order of the tree: number of elements n in each
                       // internal node
           // is always B <= n <= 2B+1  (except at the beginning)
@@ -1634,7 +1634,7 @@ class spsi<leaf_type, B_LEAF, B>::node {
                                             uint64_t x, uint8_t width, uint8_t n) {
     assert(n);
     assert(n * width <= sizeof(x) * 8);
-    assert(n <= B_LEAF);
+    assert(n <= 2 * B_LEAF);
 
     if (free_capacity(*leaf) >= n) {
       leaf->insert_word(insert_pos, x, width, n);
@@ -1765,8 +1765,8 @@ class spsi<leaf_type, B_LEAF, B>::node {
   }
 
   static uint64_t free_capacity(const leaf_type& l) {
-    assert(l.size() <= 2 * B_LEAF);
-    return 2 * B_LEAF - l.size();
+    assert(l.size() <= 3 * B_LEAF);
+    return 3 * B_LEAF - l.size();
   }
 
 
