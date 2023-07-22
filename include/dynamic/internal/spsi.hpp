@@ -120,8 +120,11 @@ class spsi {
    * copy assignment
    */
   void operator=(const spsi& sp) {
-    root->free_mem();
-    delete root;
+    if (root)
+    {
+      root->free_mem();
+      delete root;
+    }
 
     root = new node(*sp.root);
   }
@@ -130,8 +133,11 @@ class spsi {
    * move assignment
    */
   void operator=(spsi&& sp) {
-    root->free_mem();
-    delete root;
+    if (root)
+    {
+      root->free_mem();
+      delete root;
+    }
 
     root = sp.root;
     sp.root = NULL;
