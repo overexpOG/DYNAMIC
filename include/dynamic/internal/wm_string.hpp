@@ -119,7 +119,7 @@ namespace dyn
             }
         }
 
-        ulint serialize(ostream &out) const
+        ulint serialize(ostream &out)
         {
             ulint w_bytes = 0;
             out.write((char *)&n, sizeof(n));
@@ -152,14 +152,14 @@ namespace dyn
         }
 
         // v[pos]
-        ulint at(ulint pos) const
+        ulint at(ulint pos)
         {
             assert(pos < this->n);
 
             ulint c = 0;
             for (ulint i = 0; i < bit_arrays.size(); ++i)
             {
-                const dynamic_bitvector_t &level = bit_arrays.at(i);
+                dynamic_bitvector_t &level = bit_arrays.at(i);
                 ulint bit = level.at(pos); // i-th bit of the original value
                 c = (c <<= 1) | bit;
                 pos = level.rank(pos, bit);
@@ -172,7 +172,7 @@ namespace dyn
         }
 
         // high-level access
-        ulint operator[](ulint i) const { return this->at(i); }
+        ulint operator[](ulint i) { return this->at(i); }
 
         void increment_alphabet()
         {
@@ -190,7 +190,7 @@ namespace dyn
         }
 
         // number of c's in v[0..pos)
-        ulint rank(ulint pos, ulint c) const
+        ulint rank(ulint pos, ulint c)
         {
             assert(pos <= n);
             if (c >= sigma)
@@ -202,7 +202,7 @@ namespace dyn
             for (ulint i = 0; i < bit_width; ++i)
             {
                 const ulint bit = (c >> (bit_width - i - 1)) & 1; // i-th bit from the top
-                const dynamic_bitvector_t &level = bit_arrays.at(i);
+                dynamic_bitvector_t &level = bit_arrays.at(i);
                 left = level.rank(left, bit);   // number of numbers that are equal to the i-th bit of c
                 right = level.rank(right, bit); // number of numbers that are equal to the i-th bit of c
                 if (bit)
@@ -217,7 +217,7 @@ namespace dyn
 
         // Returns the i-th position of c+1
         // The rank is 1-origin
-        ulint select(ulint rank, ulint c) const
+        ulint select(ulint rank, ulint c)
         {
             assert(rank > 0);
             assert(c < sigma);
@@ -378,7 +378,7 @@ namespace dyn
          * @arg n_elems
          * @returns pair<>
          * */
-        std::pair<ulint, ulint> select_next(ulint pos, ulint c, ulint n_elems) const
+        std::pair<ulint, ulint> select_next(ulint pos, ulint c, ulint n_elems)
         {
             assert(pos <= size());
             uint64_t mask = 1ULL << (bit_arrays.size() - 1);
@@ -393,7 +393,7 @@ namespace dyn
 
             for (ulint k = 0; k < bit_arrays.size() and pos; k++)
             {
-                const dynamic_bitvector_t &level = bit_arrays.at(k);
+                dynamic_bitvector_t &level = bit_arrays.at(k);
                 rank_b = level.rank(b);                  // ones in [0...b)
                 ulint ones = level.rank(b + r) - rank_b; // ones in [b...r)
                 if (c & mask)
@@ -421,7 +421,7 @@ namespace dyn
             {
                 b = path_beginnings[levels_amount - k];
                 rank_b = path_ranks[levels_amount - k];
-                const dynamic_bitvector_t &level = bit_arrays.at(levels_amount - k);
+                dynamic_bitvector_t &level = bit_arrays.at(levels_amount - k);
                 if (c & mask)
                 { // right child => search i'th one
                     pos = level.select1(rank_b + pos - 1) - b + 1;
@@ -435,12 +435,12 @@ namespace dyn
             return std::pair<ulint, ulint>(pos - 1, r);
         }
 
-        ulint range_minimum_query(ulint i, ulint j) const
+        ulint range_minimum_query(ulint i, ulint j)
         {
             return _range_minimum_query(i, j, 0, 0, 0);
         }
 
-        ulint _range_minimum_query(ulint i, ulint j, ulint depth, ulint b, ulint res) const
+        ulint _range_minimum_query(ulint i, ulint j, ulint depth, ulint b, ulint res)
         {
             if (depth == bit_arrays.size())
             {
@@ -448,7 +448,7 @@ namespace dyn
             }
             else
             {
-                const dynamic_bitvector_t &level = bit_arrays.at(depth);
+                dynamic_bitvector_t &level = bit_arrays.at(depth);
                 ulint rank_0_b = level.rank(b);
                 ulint rank_b_i = level.rank(b + i) - rank_0_b;
                 ulint rank_b_j = level.rank(b + j + 1) - rank_0_b;
@@ -479,7 +479,7 @@ namespace dyn
          * \param
          *
          * */
-        ulint range_next_value(ulint x, ulint i, ulint j) const
+        ulint range_next_value(ulint x, ulint i, ulint j) 
         {
             // c is greater than any symbol in the wm
             if (((1ULL) << bit_arrays.size()) <= x)
@@ -488,7 +488,7 @@ namespace dyn
             return _range_next_value(x, i, j, 0, 0, 0);
         }
 
-        ulint _range_next_value(ulint x, ulint i, ulint j, ulint depth, ulint b, ulint res) const
+        ulint _range_next_value(ulint x, ulint i, ulint j, ulint depth, ulint b, ulint res) 
         {
             if (b + i > b + j)
             {
@@ -500,7 +500,7 @@ namespace dyn
                     return res;
                 else
                 {
-                    const dynamic_bitvector_t &level = bit_arrays.at(depth);
+                    dynamic_bitvector_t &level = bit_arrays.at(depth);
                     ulint rank_0_b = level.rank(b);
                     ulint rank_b_i = level.rank(b + i) - rank_0_b;
                     ulint rank_b_j = level.rank(b + j + 1) - rank_0_b;
@@ -537,7 +537,7 @@ namespace dyn
             }
         }
 
-        ulint _range_next_value_min(ulint i, ulint j, ulint depth, ulint b, ulint res) const
+        ulint _range_next_value_min(ulint i, ulint j, ulint depth, ulint b, ulint res)
         {
             if (b + i > b + j)
                 return 0;
@@ -546,7 +546,7 @@ namespace dyn
                 return res;
             else
             {
-                const dynamic_bitvector_t &level = bit_arrays.at(depth);
+                dynamic_bitvector_t &level = bit_arrays.at(depth);
                 ulint rank_0_b = level.rank(b);
                 ulint rank_b_i = level.rank(b + i) - rank_0_b;
                 ulint rank_b_j = level.rank(b + j + 1) - rank_0_b;
@@ -572,9 +572,9 @@ namespace dyn
             }
         }
 
-        std::pair<range_t, range_t> child_ranges(ulint depth, range_t r) const
+        std::pair<range_t, range_t> child_ranges(ulint depth, range_t r)
         {
-            const dynamic_bitvector_t &level = bit_arrays.at(depth);
+            dynamic_bitvector_t &level = bit_arrays.at(depth);
             ulint left_of_range_ones = level.rank(r.first);
             ulint in_range_ones = level.rank(r.second + 1);
             ulint right_size = in_range_ones - left_of_range_ones;
@@ -589,7 +589,7 @@ namespace dyn
         }
 
         std::vector<ulint>
-        all_values_in_range(ulint lb, ulint rb) const
+        all_values_in_range(ulint lb, ulint rb)
         {
             std::vector<ulint> res_vec;
             if (lb <= rb)
@@ -599,7 +599,7 @@ namespace dyn
             return res_vec;
         }
 
-        void _all_values_in_range(ulint acc_sym, ulint depth, range_t r, std::vector<ulint> &res_vec) const
+        void _all_values_in_range(ulint acc_sym, ulint depth, range_t r, std::vector<ulint> &res_vec)
         {
             using std::get;
             if (get<0>(r) > get<1>(r))
@@ -611,7 +611,7 @@ namespace dyn
             {
                 ulint l_bound = get<0>(r);
                 ulint r_bound = get<1>(r);
-                const dynamic_bitvector_t &level = bit_arrays.at(depth);
+                dynamic_bitvector_t &level = bit_arrays.at(depth);
                 ulint rank_outside_range = level.rank(l_bound);
                 ulint rank_inside_range = level.rank(r_bound + 1);
                 if ((r_bound - l_bound + 1 - (rank_inside_range - rank_outside_range)) > 0)
@@ -640,7 +640,7 @@ namespace dyn
             }
         }
 
-        std::pair<ulint, ulint> inverse_select(ulint i) const
+        std::pair<ulint, ulint> inverse_select(ulint i)
         {
             assert(i < size());
             ulint c = 0;
@@ -648,7 +648,7 @@ namespace dyn
             ulint mask = (1ULL) << (bit_arrays.size() - 1);
             for (ulint k = 0; k < bit_arrays.size(); ++k)
             {
-                const dynamic_bitvector_t &level = bit_arrays.at(k);
+                dynamic_bitvector_t &level = bit_arrays.at(k);
                 ulint ones_left_of_interval = level.rank(b);
                 ulint ones_in_interval = level.rank(b + i) - ones_left_of_interval;
                 c <<= 1;
