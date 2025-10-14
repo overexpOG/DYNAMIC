@@ -58,7 +58,7 @@ The SPSI structure is the building block on which all other structures are based
 
 ### Download
 
-> git clone https://github.com/nicolaprezza/dynamic
+> git clone https://github.com/overexpOG/DYNAMIC
 
 ### Compile
 
